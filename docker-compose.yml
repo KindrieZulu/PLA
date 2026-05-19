@@ -1,0 +1,86 @@
+version: '3.8'
+
+# ── PLA Local Development Stack ───────────────────────────────────────────
+# Starts the backend + both databases in one command:
+#   docker compose up -d
+#
+# Stop and remove containers:
+#   docker compose down
+#
+# Reset all data (drop volumes):
+#   docker compose down -v
+
+services:
+
+  # ── Backend API ───────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./pla-backend
+      target:  production
+    container_name: pla-backend
+    ports:
+      - "5000:5000"
+    env_file:
+      - ./pla-backend/.env
+    environment:
+      POSTGRES_HOST: postgres
+      MONGO_URI:     mongodb://mongodb:27017/pla_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+    networks:
+      - pla-net
+    restart: unless-stopped
+
+  # ── PostgreSQL ────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: pla-postgres
+    environment:
+      POSTGRES_USER:     postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB:       pla_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"    # expose to host for local psql / DBeaver access
+    healthcheck:
+      test:     ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout:  5s
+      retries:  5
+    networks:
+      - pla-net
+    restart: unless-stopped
+
+  # ── MongoDB ───────────────────────────────────────────────────────────────
+  mongodb:
+    image: mongo:7
+    container_name: pla-mongodb
+    environment:
+      MONGO_INITDB_DATABASE: pla_db
+    volumes:
+      - mongodb_data:/data/db
+    ports:
+      - "27017:27017"  # expose to host for Compass / mongosh access
+    healthcheck:
+      test:     ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout:  5s
+      retries:  5
+    networks:
+      - pla-net
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    name: pla_postgres_data
+  mongodb_data:
+    name: pla_mongodb_data
+
+networks:
+  pla-net:
+    name: pla-network
+    driver: bridge
