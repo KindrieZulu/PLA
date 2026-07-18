@@ -1,0 +1,12 @@
+apiVersion: 1
+
+providers:
+  - name: 'PLA Dashboards'
+    orgId: 1
+    folder: 'PLA'
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

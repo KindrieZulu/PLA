@@ -1,0 +1,149 @@
+groups:
+  - name: pla_application_alerts
+    interval: 30s
+    rules:
+      # High error rate
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status_code=~"5.."}[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          service: pla-backend
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | printf \"%.2f\" }}% (threshold: 5%)"
+
+      # Slow response time
+      - alert: SlowResponseTime
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+          service: pla-backend
+        annotations:
+          summary: "Slow response times"
+          description: "95th percentile response time is {{ $value }}s (threshold: 2s)"
+
+      # High request rate (potential attack)
+      - alert: HighRequestRate
+        expr: rate(http_requests_total[1m]) > 1000
+        for: 2m
+        labels:
+          severity: warning
+          service: pla-backend
+        annotations:
+          summary: "High request rate detected"
+          description: "Request rate is {{ $value }}/s (threshold: 1000/s)"
+
+      # High memory usage
+      - alert: HighMemoryUsage
+        expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          service: infrastructure
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is {{ $value | printf \"%.1f\" }}% (threshold: 85%)"
+
+      # CPU usage
+      - alert: HighCPUUsage
+        expr: 100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 10m
+        labels:
+          severity: warning
+          service: infrastructure
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is {{ $value | printf \"%.1f\" }}% (threshold: 80%)"
+
+      # Authentication failures
+      - alert: HighAuthFailureRate
+        expr: rate(auth_attempts_total{result="failure"}[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+          service: pla-backend
+        annotations:
+          summary: "High authentication failure rate"
+          description: "Authentication failure rate is {{ $value | printf \"%.2f\" }}/s"
+
+      # Rate limit hits
+      - alert: RateLimitExceeded
+        expr: rate(rate_limit_hits_total[5m]) > 1
+        for: 1m
+        labels:
+          severity: info
+          service: pla-backend
+        annotations:
+          summary: "Rate limits being triggered"
+          description: "Rate limit exceeded {{ $value | printf \"%.2f\" }} times per second"
+
+      # Database connection issues
+      - alert: DatabaseConnectionPoolExhausted
+        expr: db_connections_active{pool="postgres"} > 15
+        for: 1m
+        labels:
+          severity: critical
+          service: database
+        annotations:
+          summary: "Database connection pool exhausted"
+          description: "PostgreSQL connection pool usage is {{ $value }} (max: 20)"
+
+      # Redis connection issues
+      - alert: RedisConnectionIssue
+        expr: redis_connected_clients == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: cache
+        annotations:
+          summary: "Redis connection lost"
+          description: "No active Redis connections detected"
+
+      # Low cache hit rate
+      - alert: LowCacheHitRate
+        expr: rate(cache_hits_total[5m]) / (rate(cache_hits_total[5m]) + rate(cache_misses_total[5m])) < 0.5
+        for: 10m
+        labels:
+          severity: warning
+          service: cache
+        annotations:
+          summary: "Low cache hit rate"
+          description: "Cache hit rate is {{ $value | printf \"%.1f\" }}% (threshold: 50%)"
+
+      # Quiz completion issues
+      - alert: LowQuizAccuracy
+        expr: rate(quiz_attempts_total{correct="false"}[1h]) / rate(quiz_attempts_total[1h]) > 0.9
+        for: 30m
+        labels:
+          severity: info
+          service: pla-backend
+        annotations:
+          summary: "Low quiz accuracy detected"
+          description: "More than 90% of quiz attempts are incorrect"
+
+  - name: sla_alerts
+    interval: 1m
+    rules:
+      # SLO: 99.9% availability
+      - alert: AvailabilitySLOLow
+        expr: (sum(rate(http_requests_total{status_code!~"5.."}[1h])) / sum(rate(http_requests_total[1h]))) < 0.999
+        for: 5m
+        labels:
+          severity: critical
+          service: pla-backend
+        annotations:
+          summary: "Availability SLO at risk"
+          description: "Current availability is {{ $value | printf \"%.3f\" }}% (SLO: 99.9%)"
+
+      # SLO: p95 latency < 500ms
+      - alert: LatencySLOLow
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[1h])) > 0.5
+        for: 15m
+        labels:
+          severity: warning
+          service: pla-backend
+        annotations:
+          summary: "Latency SLO at risk"
+          description: "p95 latency is {{ $value }}s (SLO: 500ms)"

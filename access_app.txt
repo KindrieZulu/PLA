@@ -1,0 +1,19 @@
+=============================================
+  PLA - Personalised Learning Assistant
+=============================================
+
+✅ SERVER RUNNING - ACCESS THE APP AT:
+
+👉 http://e2b.local:3000
+
+=============================================
+
+Alternative URLs:
+  • http://localhost:3000
+  • http://e2b.local:5000 (API only)
+
+Services Status:
+  • Web UI: Running on port 3000
+  • API: Running on port 5000
+
+=============================================
