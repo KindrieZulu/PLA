@@ -1,0 +1,29 @@
+global:
+  smtp_smarthost: 'localhost:587'
+  smtp_from: 'alerts@pla.local'
+  smtp_require_tls: false
+
+route:
+  group_by: ['alertname', 'service']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  receiver: 'pla-alerts'
+
+  routes:
+    - match:
+        severity: critical
+      receiver: 'pla-critical'
+      group_wait: 10s
+      repeat_interval: 1h
+
+receivers:
+  - name: 'pla-alerts'
+    webhook_configs:
+      - url: 'http://localhost:9095/alert'
+        send_resolved: true
+
+  - name: 'pla-critical'
+    webhook_configs:
+      - url: 'http://localhost:9095/critical'
+        send_resolved: true

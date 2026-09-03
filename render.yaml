@@ -1,0 +1,98 @@
+databases:
+  - name: pla-postgres
+    plan: free
+    databaseName: pla_db
+    user: pla_user
+    ipAllowList: []
+    postgresMajorVersion: "16"
+
+  - name: pla-redis
+    plan: free
+    ipAllowList: []
+
+services:
+  - type: web
+    name: pla-backend
+    runtime: node
+    plan: free
+    region: oregon
+    rootDir: pla-backend
+    buildCommand: npm ci --omit=dev
+    startCommand: node src/server.js
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: AUTO_MIGRATE
+        value: "true"
+      - key: PORT
+        value: 5000
+      - key: LOG_LEVEL
+        value: info
+      - key: BCRYPT_ROUNDS
+        value: "12"
+      - key: POSTGRES_HOST
+        fromDatabase:
+          name: pla-postgres
+          property: host
+      - key: POSTGRES_PORT
+        fromDatabase:
+          name: pla-postgres
+          property: port
+      - key: POSTGRES_USER
+        fromDatabase:
+          name: pla-postgres
+          property: user
+      - key: POSTGRES_PASSWORD
+        fromDatabase:
+          name: pla-postgres
+          property: password
+      - key: POSTGRES_DB
+        fromDatabase:
+          name: pla-postgres
+          property: database
+      - key: DATABASE_URL
+        fromDatabase:
+          name: pla-postgres
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+        length: 64
+      - key: JWT_EXPIRES_IN
+        value: 15m
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 7d
+      - key: SESSION_SECRET
+        generateValue: true
+        length: 64
+      - key: CORS_ORIGIN
+        value: https://pla-web.onrender.com
+      - key: RATE_LIMIT_WINDOW_MS
+        value: "900000"
+      - key: RATE_LIMIT_MAX_REQUESTS
+        value: "300"
+      - key: RATE_LIMIT_AUTH_WINDOW_MS
+        value: "900000"
+      - key: RATE_LIMIT_AUTH_MAX
+        value: "10"
+      - key: TRUST_PROXY
+        value: "true"
+
+  - type: web
+    name: pla-web
+    runtime: node
+    plan: free
+    region: oregon
+    rootDir: pla-webApp
+    buildCommand: npm install && npm run build
+    startCommand: node server.js
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: BACKEND_URL
+        value: https://pla-backend.onrender.com

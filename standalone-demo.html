@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PLA - Personalised Learning Assistant</title>
+  <style>
+    :root {
+      --primary: #0a2e1a;
+      --primary-light: #1a4d2e;
+      --primary-lighter: #2d7a4a;
+      --accent: #10b981;
+      --accent-light: #34d399;
+      --bg: #f0fdf4;
+      --card: #ffffff;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --info: #3b82f6;
+      --success: #10b981;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* NAV */
+    .navbar {
+      background: var(--primary);
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 60px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    .navbar .logo { color: white; font-size: 1.4rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .navbar .logo span { font-size: 1.6rem; }
+    .navbar nav { display: flex; gap: 4px; }
+    .navbar nav a {
+      color: rgba(255,255,255,0.8);
+      text-decoration: none;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+    .navbar nav a:hover, .navbar nav a.active { background: rgba(255,255,255,0.15); color: white; }
+    .user-badge {
+      display: flex; align-items: center; gap: 10px;
+      color: white; font-size: 0.9rem;
+    }
+    .user-badge .avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: var(--accent); display: flex; align-items: center;
+      justify-content: center; font-weight: 700; font-size: 0.85rem;
+    }
+
+    /* LAYOUT */
+    .app { display: flex; min-height: calc(100vh - 60px); }
+    .sidebar {
+      width: 240px; background: white; border-right: 1px solid var(--border);
+      padding: 16px 0; flex-shrink: 0;
+    }
+    .sidebar-item {
+      padding: 10px 20px; cursor: pointer; display: flex;
+      align-items: center; gap: 10px; color: var(--text-muted);
+      font-size: 0.9rem; transition: all 0.2s; border-left: 3px solid transparent;
+    }
+    .sidebar-item:hover { background: var(--bg); color: var(--text); }
+    .sidebar-item.active { color: var(--primary); background: var(--bg); border-left-color: var(--accent); font-weight: 600; }
+    .sidebar-item .icon { font-size: 1.1rem; width: 24px; text-align: center; }
+    .main { flex: 1; padding: 24px; overflow-y: auto; }
+    .main-header { margin-bottom: 24px; }
+    .main-header h1 { font-size: 1.8rem; color: var(--primary); }
+    .main-header p { color: var(--text-muted); margin-top: 4px; }
+
+    /* CARDS */
+    .card {
+      background: var(--card); border-radius: 12px; padding: 24px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06); border: 1px solid var(--border);
+      margin-bottom: 16px;
+    }
+    .card h3 { font-size: 1rem; color: var(--text); margin-bottom: 12px; }
+
+    /* GRID */
+    .grid { display: grid; gap: 16px; }
+    .grid-2 { grid-template-columns: repeat(2, 1fr); }
+    .grid-3 { grid-template-columns: repeat(3, 1fr); }
+    .grid-4 { grid-template-columns: repeat(4, 1fr); }
+
+    /* STAT CARDS */
+    .stat-card {
+      background: var(--card); border-radius: 12px; padding: 20px;
+      border: 1px solid var(--border); position: relative; overflow: hidden;
+    }
+    .stat-card::before {
+      content: ''; position: absolute; top: 0; left: 0;
+      width: 4px; height: 100%;
+    }
+    .stat-card.green::before { background: var(--success); }
+    .stat-card.blue::before { background: var(--info); }
+    .stat-card.yellow::before { background: var(--warning); }
+    .stat-card.red::before { background: var(--danger); }
+    .stat-card .stat-value { font-size: 2rem; font-weight: 700; color: var(--primary); }
+    .stat-card .stat-label { font-size: 0.85rem; color: var(--text-muted); margin-top: 4px; }
+    .stat-card .stat-icon { position: absolute; top: 16px; right: 16px; font-size: 1.5rem; opacity: 0.5; }
+
+    /* PROGRESS */
+    .progress-bar { height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; margin-top: 8px; }
+    .progress-bar .fill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
+    .progress-bar .fill.green { background: linear-gradient(90deg, var(--accent), var(--accent-light)); }
+    .progress-bar .fill.blue { background: linear-gradient(90deg, var(--info), #60a5fa); }
+    .progress-bar .fill.yellow { background: linear-gradient(90deg, var(--warning), #fbbf24); }
+    .progress-bar .fill.red { background: linear-gradient(90deg, var(--danger), #f87171); }
+
+    /* SKILL MASTERY */
+    .skill-row {
+      display: flex; align-items: center; padding: 12px 0;
+      border-bottom: 1px solid var(--border); gap: 12px;
+    }
+    .skill-row:last-child { border-bottom: none; }
+    .skill-name { flex: 1; font-size: 0.9rem; }
+    .skill-mastery { width: 100px; text-align: right; font-weight: 600; font-size: 0.9rem; }
+    .skill-bar { width: 200px; }
+
+    /* QUIZ */
+    .quiz-card {
+      background: var(--card); border-radius: 16px; padding: 32px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08); border: 1px solid var(--border);
+      max-width: 700px; margin: 0 auto;
+    }
+    .quiz-question { font-size: 1.2rem; line-height: 1.6; margin-bottom: 24px; }
+    .quiz-options { display: flex; flex-direction: column; gap: 10px; }
+    .quiz-option {
+      padding: 14px 20px; border: 2px solid var(--border); border-radius: 10px;
+      cursor: pointer; transition: all 0.2s; font-size: 1rem; display: flex; align-items: center; gap: 12px;
+    }
+    .quiz-option:hover { border-color: var(--accent); background: #f0fdf4; }
+    .quiz-option.selected { border-color: var(--accent); background: #ecfdf5; }
+    .quiz-option.correct { border-color: var(--success); background: #ecfdf5; }
+    .quiz-option.wrong { border-color: var(--danger); background: #fef2f2; }
+    .quiz-option .letter {
+      width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 600; font-size: 0.85rem; flex-shrink: 0;
+    }
+    .quiz-option.selected .letter { border-color: var(--accent); background: var(--accent); color: white; }
+    .quiz-option.correct .letter { border-color: var(--success); background: var(--success); color: white; }
+    .quiz-option.wrong .letter { border-color: var(--danger); background: var(--danger); color: white; }
+
+    .btn {
+      padding: 12px 28px; border-radius: 10px; border: none;
+      font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
+    }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-light); transform: translateY(-1px); }
+    .btn-secondary { background: var(--border); color: var(--text); }
+    .btn-success { background: var(--success); color: white; }
+    .btn-sm { padding: 8px 16px; font-size: 0.85rem; }
+
+    /* EXPLANATION */
+    .explanation {
+      margin-top: 16px; padding: 16px; border-radius: 10px;
+      font-size: 0.95rem; line-height: 1.6;
+    }
+    .explanation.correct { background: #ecfdf5; border: 1px solid #86efac; color: #166534; }
+    .explanation.wrong { background: #fef2f2; border: 1px solid #fca5a5; color: #991b1b; }
+
+    /* QUIZ HEADER */
+    .quiz-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .quiz-progress { display: flex; align-items: center; gap: 10px; }
+    .quiz-progress-text { font-size: 0.9rem; color: var(--text-muted); }
+    .quiz-timer { font-size: 0.9rem; color: var(--text-muted); display: flex; align-items: center; gap: 4px; }
+
+    /* CHARTS */
+    .mastery-chart {
+      display: flex; align-items: flex-end; gap: 12px; height: 200px; padding: 16px 0;
+    }
+    .chart-bar-wrapper { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end; }
+    .chart-bar {
+      width: 100%; border-radius: 6px 6px 0 0; transition: height 0.6s ease;
+      position: relative; min-height: 4px;
+    }
+    .chart-bar-label { font-size: 0.75rem; color: var(--text-muted); text-align: center; writing-mode: vertical-rl; transform: rotate(180deg); max-height: 80px; overflow: hidden; }
+    .chart-bar-value { font-size: 0.8rem; font-weight: 600; color: var(--text); }
+
+    /* LOGIN */
+    .login-page {
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh; background: linear-gradient(135deg, #0a2e1a 0%, #1a4d2e 50%, #0a2e1a 100%);
+    }
+    .login-card {
+      background: white; border-radius: 20px; padding: 48px 40px;
+      width: 420px; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    .login-card h1 { text-align: center; color: var(--primary); margin-bottom: 8px; font-size: 1.8rem; }
+    .login-card .subtitle { text-align: center; color: var(--text-muted); margin-bottom: 32px; }
+    .form-group { margin-bottom: 20px; }
+    .form-group label { display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 6px; color: var(--text); }
+    .form-group input {
+      width: 100%; padding: 12px 16px; border: 2px solid var(--border);
+      border-radius: 10px; font-size: 1rem; transition: border-color 0.2s;
+    }
+    .form-group input:focus { outline: none; border-color: var(--accent); }
+    .login-btn { width: 100%; padding: 14px; margin-top: 8px; }
+    .login-hint { text-align: center; margin-top: 16px; font-size: 0.85rem; color: var(--text-muted); }
+
+    /* TEACHER TABLE */
+    .data-table { width: 100%; border-collapse: collapse; }
+    .data-table th { text-align: left; padding: 12px; font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); border-bottom: 2px solid var(--border); }
+    .data-table td { padding: 12px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+    .data-table tr:hover { background: #f8fafc; }
+    .badge {
+      display: inline-block; padding: 3px 10px; border-radius: 12px;
+      font-size: 0.8rem; font-weight: 600;
+    }
+    .badge.green { background: #d1fae5; color: #065f46; }
+    .badge.yellow { background: #fef3c7; color: #92400e; }
+    .badge.red { background: #fee2e2; color: #991b1b; }
+
+    /* NOTIFICATIONS */
+    .toast {
+      position: fixed; top: 80px; right: 24px; padding: 14px 20px;
+      border-radius: 10px; color: white; font-weight: 500;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 200;
+      transform: translateX(120%); transition: transform 0.3s ease;
+    }
+    .toast.show { transform: translateX(0); }
+    .toast.success { background: var(--success); }
+    .toast.error { background: var(--danger); }
+
+    /* ANIMATIONS */
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .fade-in { animation: fadeIn 0.4s ease; }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+<!-- ==================== LOGIN PAGE ==================== -->
+<div id="loginPage" class="login-page">
+  <div class="login-card fade-in">
+    <h1>🎓 PLA</h1>
+    <p class="subtitle">Personalised Learning Assistant</p>
+    <div class="form-group">
+      <label>Username</label>
+      <input type="text" id="loginUser" placeholder="Enter username" value="student1">
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="loginPass" placeholder="Enter password" value="Student123!">
+    </div>
+    <button class="btn btn-primary login-btn" onclick="handleLogin()">Sign In</button>
+    <p class="login-hint">Demo: <strong>student1</strong> / <strong>Student123!</strong><br>Teacher: <strong>teacher1</strong> / <strong>Teacher123!</strong></p>
+  </div>
+</div>
+
+<!-- ==================== APP SHELL ==================== -->
+<div id="appShell" class="hidden">
+  <div class="navbar">
+    <div class="logo"><span>🎓</span> PLA</div>
+    <nav>
+      <a onclick="showPage('dashboard')" class="active" data-page="dashboard">📊 Dashboard</a>
+      <a onclick="showPage('practice')" data-page="practice">✏️ Practice</a>
+      <a onclick="showPage('mastery')" data-page="mastery">🧠 Mastery</a>
+      <a onclick="showPage('materials')" data-page="materials">📚 Materials</a>
+      <a onclick="showPage('teacher')" data-page="teacher" id="teacherNav">👩‍🏫 Teacher</a>
+    </nav>
+    <div class="user-badge">
+      <div class="avatar" id="userAvatar">TN</div>
+      <span id="userName">Tatenda Ncube</span>
+      <a onclick="handleLogout()" style="color:rgba(255,255,255,0.6);cursor:pointer;margin-left:8px;font-size:0.85rem;">Logout</a>
+    </div>
+  </div>
+
+  <div class="app">
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-item active" onclick="showPage('dashboard')" data-page="dashboard">
+        <span class="icon">📊</span> Dashboard
+      </div>
+      <div class="sidebar-item" onclick="showPage('practice')" data-page="practice">
+        <span class="icon">✏️</span> Practice
+      </div>
+      <div class="sidebar-item" onclick="showPage('mastery')" data-page="mastery">
+        <span class="icon">🧠</span> Mastery Map
+      </div>
+      <div class="sidebar-item" onclick="showPage('materials')" data-page="materials">
+        <span class="icon">📚</span> Materials
+      </div>
+      <div class="sidebar-item" onclick="showPage('sessions')" data-page="sessions">
+        <span class="icon">📝</span> Sessions
+      </div>
+      <div class="sidebar-item" onclick="showPage('settings')" data-page="settings">
+        <span class="icon">⚙️</span> Settings
+      </div>
+    </div>
+
+    <div class="main" id="mainContent">
+      <!-- Content injected by JS -->
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast" class="toast"></div>
+
+<script>
+// ==================== APP STATE ====================
+const state = {
+  loggedIn: false,
+  user: null,
+  role: 'student',
+  currentPage: 'dashboard',
+  quiz: {
+    current: 0,
+    score: 0,
+    answered: false,
+    selected: null,
+    questions: [
+      {
+        text: 'What is the value of the digit 7 in the number 4,725?',
+        options: ['7', '70', '700', '7,000'],
+        correct: 2,
+        explanation: 'The digit 7 is in the hundreds place, so its value is 7 × 100 = 700.',
+        skill: 'Place Value',
+        difficulty: 'Easy'
+      },
+      {
+        text: 'Calculate: 2,345 + 1,678 = ?',
+        options: ['3,923', '4,023', '4,123', '3,023'],
+        correct: 1,
+        explanation: '2,345 + 1,678 = 4,023. Add column by column from right to left.',
+        skill: 'Addition & Subtraction',
+        difficulty: 'Easy'
+      },
+      {
+        text: 'Which fraction is equivalent to 3/4?',
+        options: ['6/10', '9/12', '4/6', '12/15'],
+        correct: 1,
+        explanation: '3/4 = 9/12 because 3×3=9 and 4×3=12. Multiply both numerator and denominator by the same number.',
+        skill: 'Fractions',
+        difficulty: 'Easy'
+      },
+      {
+        text: 'Evaluate: 8 + 2 × (6 - 3)²',
+        options: ['18', '26', '50', '36'],
+        correct: 1,
+        explanation: 'BODMAS: Brackets first (6-3)=3, then Indices 3²=9, then Multiplication 2×9=18, then Addition 8+18=26.',
+        skill: 'Order of Operations',
+        difficulty: 'Hard'
+      },
+      {
+        text: 'If x = 5, what is the value of 3x + 7?',
+        options: ['15', '22', '23', '12'],
+        correct: 1,
+        explanation: 'Substitute x=5: 3(5) + 7 = 15 + 7 = 22.',
+        skill: 'Algebraic Expressions',
+        difficulty: 'Medium'
+      }
+    ]
+  },
+  mastery: {
+    'Place Value': { probability: 0.85, theta: 1.2, correct: 8, incorrect: 2, streak: 4 },
+    'Addition & Subtraction': { probability: 0.72, theta: 0.8, correct: 5, incorrect: 3, streak: 2 },
+    'Multiplication': { probability: 0.45, theta: -0.2, correct: 3, incorrect: 4, streak: 0 },
+    'Division': { probability: 0.38, theta: -0.5, correct: 2, incorrect: 5, streak: 0 },
+    'Order of Operations': { probability: 0.25, theta: -0.8, correct: 1, incorrect: 4, streak: 0 },
+    'Understanding Fractions': { probability: 0.65, theta: 0.5, correct: 4, incorrect: 3, streak: 1 },
+    'Adding Fractions': { probability: 0.42, theta: -0.3, correct: 3, incorrect: 4, streak: 0 },
+    'Variables & Expressions': { probability: 0.55, theta: 0.2, correct: 3, incorrect: 3, streak: 1 },
+    'Solving Equations': { probability: 0.20, theta: -1.0, correct: 1, incorrect: 5, streak: 0 }
+  }
+};
+
+// ==================== AUTH ====================
+function handleLogin() {
+  const user = document.getElementById('loginUser').value;
+  const pass = document.getElementById('loginPass').value;
+
+  if (!user || !pass) { showToast('Please enter credentials', 'error'); return; }
+
+  if (user === 'teacher1' && pass === 'Teacher123!') {
+    state.user = { name: 'Tendai Moyo', initials: 'TM', role: 'teacher', class: 'Form 1A' };
+    state.role = 'teacher';
+  } else if (user === 'student1' && pass === 'Student123!') {
+    state.user = { name: 'Tatenda Ncube', initials: 'TN', role: 'student', class: 'Form 1A' };
+    state.role = 'student';
+  } else {
+    showToast('Invalid credentials. Use student1/Student123! or teacher1/Teacher123!', 'error');
+    return;
+  }
+
+  state.loggedIn = true;
+  document.getElementById('loginPage').classList.add('hidden');
+  document.getElementById('appShell').classList.remove('hidden');
+  document.getElementById('userName').textContent = state.user.name;
+  document.getElementById('userAvatar').textContent = state.user.initials;
+  document.getElementById('teacherNav').style.display = state.role === 'teacher' ? '' : 'none';
+  showPage('dashboard');
+  showToast(`Welcome back, ${state.user.name}!`, 'success');
+}
+
+function handleLogout() {
+  state.loggedIn = false;
+  state.user = null;
+  state.role = 'student';
+  document.getElementById('loginPage').classList.remove('hidden');
+  document.getElementById('appShell').classList.add('hidden');
+  showToast('Logged out successfully', 'success');
+}
+
+// ==================== NAVIGATION ====================
+function showPage(page) {
+  state.currentPage = page;
+  document.querySelectorAll('.sidebar-item').forEach(el => el.classList.toggle('active', el.dataset.page === page));
+  document.querySelectorAll('.navbar nav a').forEach(el => el.classList.toggle('active', el.dataset.page === page));
+
+  const main = document.getElementById('mainContent');
+  main.innerHTML = '';
+  main.className = 'main fade-in';
+
+  switch(page) {
+    case 'dashboard': renderDashboard(); break;
+    case 'practice': renderPractice(); break;
+    case 'mastery': renderMastery(); break;
+    case 'materials': renderMaterials(); break;
+    case 'teacher': renderTeacher(); break;
+    case 'sessions': renderSessions(); break;
+    case 'settings': renderSettings(); break;
+  }
+}
+
+// ==================== DASHBOARD ====================
+function renderDashboard() {
+  const m = state.mastery;
+  const totalSkills = Object.keys(m).length;
+  const mastered = Object.values(m).filter(v => v.probability >= 0.8).length;
+  const inProgress = Object.values(m).filter(v => v.probability >= 0.5 && v.probability < 0.8).length;
+  const avgMastery = (Object.values(m).reduce((a, v) => a + v.probability, 0) / totalSkills * 100).toFixed(0);
+
+  document.getElementById('mainContent').innerHTML = `
+    <div class="main-header">
+      <h1>Good ${getGreeting()}, ${state.user.name.split(' ')[0]}! 👋</h1>
+      <p>Here's your learning progress overview</p>
+    </div>
+
+    <div class="grid grid-4" style="margin-bottom:24px">
+      <div class="stat-card green">
+        <div class="stat-icon">🎯</div>
+        <div class="stat-value">${mastered}</div>
+        <div class="stat-label">Skills Mastered</div>
+      </div>
+      <div class="stat-card blue">
+        <div class="stat-icon">📈</div>
+        <div class="stat-value">${inProgress}</div>
+        <div class="stat-label">In Progress</div>
+      </div>
+      <div class="stat-card yellow">
+        <div class="stat-icon">🧠</div>
+        <div class="stat-value">${avgMastery}%</div>
+        <div class="stat-label">Avg Mastery</div>
+      </div>
+      <div class="stat-card red">
+        <div class="stat-icon">🔥</div>
+        <div class="stat-value">7</div>
+        <div class="stat-label">Day Streak</div>
+      </div>
+    </div>
+
+    <div class="grid grid-2">
+      <div class="card">
+        <h3>📊 Mastery by Module</h3>
+        <div class="mastery-chart">
+          ${renderMasteryBars()}
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>🎯 Continue Learning</h3>
+        <div style="margin-top:12px">
+          ${renderSkillList('Weakest Skills', Object.entries(m).sort((a,b) => a[1].probability - b[1].probability).slice(0, 3))}
+        </div>
+        <div style="margin-top:16px">
+          <button class="btn btn-primary btn-sm" onclick="showPage('practice')">Start Practice →</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <h3>📅 Recent Activity</h3>
+      <table class="data-table" style="margin-top:12px">
+        <thead>
+          <tr><th>Date</th><th>Activity</th><th>Duration</th><th>Score</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Today</td><td>Whole Numbers Practice</td><td>12 min</td><td>4/5 (80%)</td></tr>
+          <tr><td>Yesterday</td><td>Fractions Quiz</td><td>18 min</td><td>6/8 (75%)</td></tr>
+          <tr><td>2 days ago</td><td>Algebra Introduction</td><td>15 min</td><td>3/5 (60%)</td></tr>
+          <tr><td>3 days ago</td><td>Place Value Review</td><td>10 min</td><td>5/5 (100%)</td></tr>
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderMasteryBars() {
+  const modules = {
+    'Whole Numbers': ['Place Value', 'Addition & Subtraction', 'Multiplication', 'Division', 'Order of Operations'],
+    'Fractions': ['Understanding Fractions', 'Adding Fractions'],
+    'Algebra': ['Variables & Expressions', 'Solving Equations']
+  };
+
+  return Object.entries(modules).map(([mod, skills]) => {
+    const avg = skills.reduce((a, s) => a + (state.mastery[s]?.probability || 0), 0) / skills.length;
+    const color = avg >= 0.8 ? 'var(--success)' : avg >= 0.5 ? 'var(--info)' : avg >= 0.3 ? 'var(--warning)' : 'var(--danger)';
+    return `
+      <div class="chart-bar-wrapper">
+        <div class="chart-bar-value">${(avg*100).toFixed(0)}%</div>
+        <div class="chart-bar" style="height:${avg*100}%;background:${color}"></div>
+        <div class="chart-bar-label">${mod}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderSkillList(title, skills) {
+  return skills.map(([name, data]) => {
+    const color = data.probability >= 0.8 ? 'green' : data.probability >= 0.5 ? 'blue' : data.probability >= 0.3 ? 'yellow' : 'red';
+    return `
+      <div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:0.9rem;flex:1">${name}</span>
+        <div class="skill-bar"><div class="progress-bar"><div class="fill ${color}" style="width:${data.probability*100}%"></div></div></div>
+        <span style="font-weight:600;font-size:0.85rem;width:50px;text-align:right;color:${color === 'green' ? 'var(--success)' : color === 'blue' ? 'var(--info)' : color === 'yellow' ? 'var(--warning)' : 'var(--danger)'}">${(data.probability*100).toFixed(0)}%</span>
+      </div>
+    `;
+  }).join('');
+}
+
+// ==================== PRACTICE (QUIZ) ====================
+function renderPractice() {
+  const q = state.quiz.questions[state.quiz.current];
+  const letters = ['A', 'B', 'C', 'D'];
+
+  document.getElementById('mainContent').innerHTML = `
+    <div class="quiz-card fade-in">
+      <div class="quiz-header">
+        <div>
+          <span style="font-size:0.85rem;color:var(--text-muted)">${q.skill}</span>
+          <span class="badge ${q.difficulty === 'Easy' ? 'green' : q.difficulty === 'Medium' ? 'yellow' : 'red'}" style="margin-left:8px">${q.difficulty}</span>
+        </div>
+        <div class="quiz-progress">
+          <span class="quiz-progress-text">Question ${state.quiz.current + 1} of ${state.quiz.questions.length}</span>
+          <div class="progress-bar" style="width:100px"><div class="fill blue" style="width:${((state.quiz.current+1)/state.quiz.questions.length)*100}%"></div></div>
+        </div>
+      </div>
+
+      <div class="quiz-question">${q.text}</div>
+
+      <div class="quiz-options">
+        ${q.options.map((opt, i) => `
+          <div class="quiz-option ${state.quiz.selected === i ? (i === q.correct ? 'correct' : 'wrong') : ''} ${state.quiz.answered && i === q.correct ? 'correct' : ''}" 
+               onclick="${state.quiz.answered ? '' : `selectOption(${i})`}"
+               style="${state.quiz.answered ? 'cursor:default' : ''}">
+            <span class="letter">${letters[i]}</span>
+            <span>${opt}</span>
+          </div>
+        `).join('')}
+      </div>
+
+      ${state.quiz.answered ? `
+        <div class="explanation ${state.quiz.selected === q.correct ? 'correct' : 'wrong'}">
+          <strong>${state.quiz.selected === q.correct ? '✅ Correct!' : '❌ Not quite.'}</strong><br>
+          ${q.explanation}
+        </div>
+        <div style="margin-top:20px;display:flex;justify-content:space-between">
+          <button class="btn btn-secondary" onclick="resetQuiz()">↺ Restart</button>
+          <button class="btn btn-primary" onclick="nextQuestion()">
+            ${state.quiz.current < state.quiz.questions.length - 1 ? 'Next Question →' : 'See Results 🎉'}
+          </button>
+        </div>
+      ` : `
+        <div style="margin-top:20px;text-align:right">
+          <button class="btn btn-primary" id="submitBtn" onclick="submitAnswer()" disabled>Submit Answer</button>
+        </div>
+      `}
+    </div>
+  `;
+}
+
+function selectOption(i) {
+  state.quiz.selected = i;
+  document.querySelectorAll('.quiz-option').forEach((el, idx) => {
+    el.classList.toggle('selected', idx === i);
+  });
+  document.getElementById('submitBtn').disabled = false;
+}
+
+function submitAnswer() {
+  state.quiz.answered = true;
+  const q = state.quiz.questions[state.quiz.current];
+  if (state.quiz.selected === q.correct) {
+    state.quiz.score++;
+    // Update mastery
+    const m = state.mastery[q.skill];
+    if (m) {
+      m.correct++;
+      m.streak++;
+      m.probability = Math.min(1, m.probability + 0.08);
+      m.theta += 0.15;
+    }
+  } else {
+    const m = state.mastery[q.skill];
+    if (m) {
+      m.incorrect++;
+      m.streak = 0;
+      m.probability = Math.max(0, m.probability - 0.05);
+      m.theta -= 0.1;
+    }
+  }
+  renderPractice();
+}
+
+function nextQuestion() {
+  if (state.quiz.current < state.quiz.questions.length - 1) {
+    state.quiz.current++;
+    state.quiz.answered = false;
+    state.quiz.selected = null;
+    renderPractice();
+  } else {
+    showResults();
+  }
+}
+
+function resetQuiz() {
+  state.quiz.current = 0;
+  state.quiz.score = 0;
+  state.quiz.answered = false;
+  state.quiz.selected = null;
+  renderPractice();
+}
+
+function showResults() {
+  const pct = (state.quiz.score / state.quiz.questions.length * 100).toFixed(0);
+  document.getElementById('mainContent').innerHTML = `
+    <div class="quiz-card fade-in" style="text-align:center;padding:48px">
+      <div style="font-size:4rem;margin-bottom:16px">${pct >= 80 ? '🎉' : pct >= 60 ? '👏' : '💪'}</div>
+      <h2 style="color:var(--primary);margin-bottom:8px">Quiz Complete!</h2>
+      <p style="font-size:3rem;font-weight:700;color:var(--accent);margin:16px 0">${state.quiz.score}/${state.quiz.questions.length}</p>
+      <p style="color:var(--text-muted);margin-bottom:32px">${pct}% correct ${pct >= 80 ? '— Excellent work!' : pct >= 60 ? '— Good progress!' : '— Keep practicing!'}</p>
+      <div style="display:flex;gap:12px;justify-content:center">
+        <button class="btn btn-primary" onclick="resetQuiz()">Try Again</button>
+        <button class="btn btn-secondary" onclick="showPage('mastery')">View Mastery</button>
+      </div>
+    </div>
+  `;
+}
+
+// ==================== MASTERY MAP ====================
+function renderMastery() {
+  const m = state.mastery;
+  document.getElementById('mainContent').innerHTML = `
+    <div class="main-header">
+      <h1>🧠 Mastery Map</h1>
+      <p>Your skill mastery levels powered by Bayesian Knowledge Tracing</p>
+    </div>
+
+    <div class="card">
+      <h3>📊 Skill Mastery Levels</h3>
+      <div style="margin-top:12px">
+        ${Object.entries(m).sort((a,b) => b[1].probability - a[1].probability).map(([name, data]) => {
+          const pct = (data.probability * 100).toFixed(0);
+          const color = data.probability >= 0.8 ? 'green' : data.probability >= 0.5 ? 'blue' : data.probability >= 0.3 ? 'yellow' : 'red';
+          const status = data.probability >= 0.8 ? 'Mastered ✅' : data.probability >= 0.5 ? 'In Progress 📈' : data.probability >= 0.3 ? 'Developing 🔄' : 'Needs Support 💡';
+          return `
+            <div class="skill-row">
+              <div style="width:30px;font-size:1.2rem">${data.probability >= 0.8 ? '🟢' : data.probability >= 0.5 ? '🔵' : data.probability >= 0.3 ? '🟡' : '🔴'}</div>
+              <div class="skill-name">
+                <div style="font-weight:500">${name}</div>
+                <div style="font-size:0.8rem;color:var(--text-muted)">${status} • ${data.correct}C / ${data.incorrect}I • θ=${data.theta.toFixed(1)}</div>
+              </div>
+              <div class="skill-bar"><div class="progress-bar"><div class="fill ${color}" style="width:${pct}%"></div></div></div>
+              <div class="skill-mastery" style="color:${color === 'green' ? 'var(--success)' : color === 'blue' ? 'var(--info)' : color === 'yellow' ? 'var(--warning)' : 'var(--danger)'}">${pct}%</div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+
+    <div class="grid grid-2">
+      <div class="card">
+        <h3>📈 Knowledge Tracing Model</h3>
+        <p style="color:var(--text-muted);font-size:0.9rem;line-height:1.6;margin-top:8px">
+          Your mastery is estimated using <strong>Bayesian Knowledge Tracing (BKT)</strong> with 4 parameters:
+        </p>
+        <div style="margin-top:16px">
+          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+            <span>P(L₀) - Initial Knowledge</span><span style="font-weight:600">0.30</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+            <span>P(T) - Learning Rate</span><span style="font-weight:600">0.10</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+            <span>P(G) - Guess Probability</span><span style="font-weight:600">0.20</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:8px 0">
+            <span>P(S) - Slip Probability</span><span style="font-weight:600">0.10</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>🎯 Ability Estimate (IRT θ)</h3>
+        <p style="color:var(--text-muted);font-size:0.9rem;margin-top:8px">
+          Your overall ability is estimated using a <strong>2-Parameter IRT model</strong>.
+        </p>
+        <div style="text-align:center;margin:24px 0">
+          <div style="font-size:3rem;font-weight:700;color:var(--primary)">θ = 0.13</div>
+          <div style="color:var(--text-muted);font-size:0.9rem;margin-top:4px">Slightly above average ability</div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:0.8rem;color:var(--text-muted)">
+          <span>-3 (Beginner)</span><span>0 (Average)</span><span>+3 (Expert)</span>
+        </div>
+        <div class="progress-bar" style="height:12px;margin-top:4px">
+          <div class="fill blue" style="width:54%"></div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ==================== MATERIALS ====================
+function renderMaterials() {
+  document.getElementById('mainContent').innerHTML = `
+    <div class="main-header">
+      <h1>📚 Learning Materials</h1>
+      <p>Curated resources aligned with ZIMSEC Form 1 Mathematics</p>
+    </div>
+    <div class="grid grid-3">
+      ${[
+        { title: 'Place Value Guide', type: 'Article', module: 'Whole Numbers', icon: '📖', difficulty: 'Easy', desc: 'Learn about place value from ones to millions with visual examples.' },
+        { title: 'Fraction Operations', type: 'Interactive', module: 'Fractions', icon: '🎮', difficulty: 'Medium', desc: 'Practice adding, subtracting, multiplying and dividing fractions.' },
+        { title: 'Introduction to Algebra', type: 'Video', module: 'Algebra', icon: '🎬', difficulty: 'Medium', desc: 'Understanding variables and writing algebraic expressions.' },
+        { title: 'BODMAS Rules', type: 'Worksheet', module: 'Whole Numbers', icon: '📝', difficulty: 'Hard', desc: 'Practice the order of operations with increasingly complex problems.' },
+        { title: 'Decimal Operations', type: 'Article', module: 'Fractions', icon: '📖', difficulty: 'Medium', desc: 'Working with decimal numbers and converting between fractions and decimals.' },
+        { title: 'Solving Equations', type: 'Interactive', module: 'Algebra', icon: '🎮', difficulty: 'Hard', desc: 'Step-by-step guide to solving linear equations.' }
+      ].map(mat => `
+        <div class="card" style="cursor:pointer" onclick="showToast('Opening: ${mat.title}...', 'success')">
+          <div style="font-size:2rem;margin-bottom:12px">${mat.icon}</div>
+          <h3 style="margin-bottom:4px">${mat.title}</h3>
+          <div style="display:flex;gap:8px;margin:8px 0">
+            <span class="badge ${mat.difficulty === 'Easy' ? 'green' : mat.difficulty === 'Medium' ? 'yellow' : 'red'}">${mat.difficulty}</span>
+            <span class="badge green">${mat.type}</span>
+          </div>
+          <p style="font-size:0.9rem;color:var(--text-muted);line-height:1.5">${mat.desc}</p>
+          <p style="font-size:0.8rem;color:var(--text-muted);margin-top:8px">📂 ${mat.module}</p>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+// ==================== TEACHER DASHBOARD ====================
+function renderTeacher() {
+  const students = [
+    { name: 'Tatenda Ncube', mastery: 55, status: 'Active', streak: 7, sessions: 24 },
+    { name: 'Rudo Moyo', mastery: 72, status: 'Active', streak: 12, sessions: 31 },
+    { name: 'Tinashe Dube', mastery: 38, status: 'Behind', streak: 0, sessions: 8 },
+    { name: 'Chiedza Mpofu', mastery: 81, status: 'Ahead', streak: 15, sessions: 35 },
+    { name: 'Farai Nkomo', mastery: 45, status: 'Active', streak: 3, sessions: 15 },
+    { name: 'Blessing Sibanda', mastery: 62, status: 'Active', streak: 5, sessions: 20 }
+  ];
+
+  document.getElementById('mainContent').innerHTML = `
+    <div class="main-header">
+      <h1>👩‍🏫 Teacher Dashboard</h1>
+      <p>Form 1A Mathematics — ${students.length} students</p>
+    </div>
+
+    <div class="grid grid-4" style="margin-bottom:24px">
+      <div class="stat-card green"><div class="stat-icon">👥</div><div class="stat-value">${students.length}</div><div class="stat-label">Students</div></div>
+      <div class="stat-card blue"><div class="stat-icon">📊</div><div class="stat-value">${(students.reduce((a,s)=>a+s.mastery,0)/students.length).toFixed(0)}%</div><div class="stat-label">Avg Mastery</div></div>
+      <div class="stat-card yellow"><div class="stat-icon">⚠️</div><div class="stat-value">${students.filter(s=>s.status==='Behind').length}</div><div class="stat-label">Behind</div></div>
+      <div class="stat-card green"><div class="stat-icon">🌟</div><div class="stat-value">${students.filter(s=>s.status==='Ahead').length}</div><div class="stat-label">Ahead</div></div>
+    </div>
+
+    <div class="card">
+      <h3>📋 Student Overview</h3>
+      <table class="data-table" style="margin-top:12px">
+        <thead>
+          <tr><th>Student</th><th>Mastery</th><th>Status</th><th>Streak</th><th>Sessions</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+          ${students.map(s => `
+            <tr>
+              <td style="font-weight:500">${s.name}</td>
+              <td>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <div class="progress-bar" style="width:80px"><div class="fill ${s.mastery >= 70 ? 'green' : s.mastery >= 50 ? 'blue' : 'yellow'}" style="width:${s.mastery}%"></div></div>
+                  <span style="font-weight:600;font-size:0.85rem">${s.mastery}%</span>
+                </div>
+              </td>
+              <td><span class="badge ${s.status === 'Ahead' ? 'green' : s.status === 'Active' ? 'green' : 'red'}">${s.status}</span></td>
+              <td>🔥 ${s.streak} days</td>
+              <td>${s.sessions}</td>
+              <td><button class="btn btn-secondary btn-sm" onclick="showToast('Viewing ${s.name}\\'s profile...', 'success')">View</button></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="grid grid-2" style="margin-top:16px">
+      <div class="card">
+        <h3>📊 Class Mastery Distribution</h3>
+        <div style="margin-top:16px">
+          <div style="display:flex;justify-content:space-between;padding:6px 0"><span>🟢 Mastered (≥80%)</span><span style="font-weight:600">${students.filter(s=>s.mastery>=80).length} students</span></div>
+          <div style="display:flex;justify-content:space-between;padding:6px 0"><span>🔵 On Track (50-79%)</span><span style="font-weight:600">${students.filter(s=>s.mastery>=50&&s.mastery<80).length} students</span></div>
+          <div style="display:flex;justify-content:space-between;padding:6px 0"><span>🟡 Developing (30-49%)</span><span style="font-weight:600">${students.filter(s=>s.mastery>=30&&s.mastery<50).length} students</span></div>
+          <div style="display:flex;justify-content:space-between;padding:6px 0"><span>🔴 Needs Support (<30%)</span><span style="font-weight:600">${students.filter(s=>s.mastery<30).length} students</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>⚡ Quick Actions</h3>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">
+          <button class="btn btn-primary btn-sm" onclick="showToast('Assigning diagnostic test...', 'success')">📋 Assign Diagnostic Test</button>
+          <button class="btn btn-secondary btn-sm" onclick="showToast('Generating report...', 'success')">📊 Generate Class Report</button>
+          <button class="btn btn-secondary btn-sm" onclick="showToast('Opening content manager...', 'success')">📚 Manage Content</button>
+          <button class="btn btn-secondary btn-sm" onclick="showToast('Opening parent communication...', 'success')">📧 Contact Parents</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ==================== SESSIONS ====================
+function renderSessions() {
+  document.getElementById('mainContent').innerHTML = `
+    <div class="main-header">
+      <h1>📝 Learning Sessions</h1>
+      <p>Your practice history and session data</p>
+    </div>
+    <div class="card">
+      <table class="data-table">
+        <thead><tr><th>Date</th><th>Focus Area</th><th>Duration</th><th>Questions</th><th>Score</th><th>Mastery Δ</th></tr></thead>
+        <tbody>
+          <tr><td>Jul 17, 2026</td><td>Whole Numbers</td><td>12 min</td><td>5</td><td>80%</td><td style="color:var(--success)">+3.2%</td></tr>
+          <tr><td>Jul 16, 2026</td><td>Fractions</td><td>18 min</td><td>8</td><td>75%</td><td style="color:var(--success)">+2.8%</td></tr>
+          <tr><td>Jul 15, 2026</td><td>Algebra</td><td>15 min</td><td>5</td><td>60%</td><td style="color:var(--success)">+1.5%</td></tr>
+          <tr><td>Jul 14, 2026</td><td>Place Value Review</td><td>10 min</td><td>5</td><td>100%</td><td style="color:var(--success)">+4.1%</td></tr>
+          <tr><td>Jul 13, 2026</td><td>Division Practice</td><td>20 min</td><td>10</td><td>50%</td><td style="color:var(--danger)">-1.2%</td></tr>
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+// ==================== SETTINGS ====================
+function renderSettings() {
+  document.getElementById('mainContent').innerHTML = `
+    <div class="main-header"><h1>⚙️ Settings</h1><p>Manage your account and preferences</p></div>
+    <div class="card">
+      <h3>👤 Profile</h3>
+      <div class="form-group" style="margin-top:12px"><label>Full Name</label><input type="text" value="${state.user.name}" style="max-width:400px"></div>
+      <div class="form-group"><label>Class</label><input type="text" value="${state.user.class}" disabled style="max-width:400px"></div>
+      <div class="form-group"><label>Role</label><input type="text" value="${state.role}" disabled style="max-width:400px"></div>
+      <button class="btn btn-primary btn-sm" onclick="showToast('Profile saved!', 'success')">Save Changes</button>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h3>🔔 Notifications</h3>
+      <div style="margin-top:12px">
+        <label style="display:flex;align-items:center;gap:8px;padding:8px 0"><input type="checkbox" checked> Daily practice reminders</label>
+        <label style="display:flex;align-items:center;gap:8px;padding:8px 0"><input type="checkbox" checked> Mastery milestone alerts</label>
+        <label style="display:flex;align-items:center;gap:8px;padding:8px 0"><input type="checkbox"> Weekly progress reports</label>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h3>🔐 Security</h3>
+      <button class="btn btn-secondary btn-sm" style="margin-top:12px" onclick="showToast('Password change dialog would open', 'success')">Change Password</button>
+    </div>
+  `;
+}
+
+// ==================== UTILITIES ====================
+function getGreeting() {
+  const h = new Date().getHours();
+  return h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
+}
+
+function showToast(msg, type = 'success') {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.className = `toast ${type} show`;
+  setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+// Auto-login for demo
+document.getElementById('loginUser').addEventListener('keypress', e => { if (e.key === 'Enter') handleLogin(); });
+document.getElementById('loginPass').addEventListener('keypress', e => { if (e.key === 'Enter') handleLogin(); });
+</script>
+</body>
+</html>
